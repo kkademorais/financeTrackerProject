@@ -47,47 +47,52 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            throw new Error("Credenciais inválidas");
+          }
+
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email,
+            },
+          });
+
+          if (!user || !user.password) {
+            throw new Error("Usuário não encontrado");
+          }
+
+          const passwordsMatch = await compare(
+            credentials.password,
+            user.password
+          );
+
+          if (!passwordsMatch) {
+            throw new Error("Senha incorreta");
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          };
+        } catch (error) {
+          console.error("[Auth] Erro no authorize:", error);
           return null;
         }
-
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        });
-
-        if (!user || !user.password) {
-          return null;
-        }
-
-        const passwordsMatch = await compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!passwordsMatch) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        };
       },
     }),
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
     GithubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID || "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.sub = user.id;
       }
@@ -101,10 +106,12 @@ export const authOptions: NextAuthOptions = {
     },
   },
   events: {
-    async signIn({ user }) {
-      console.log("[Auth] SignIn Event - User:", user.id);
+    async signIn({ user, account }) {
+      if (!process.env.NEXTAUTH_SECRET) {
+        console.error("[Auth] NEXTAUTH_SECRET não está definido!");
+      }
+      console.log("[Auth] SignIn Event - User:", user.id, "Account type:", account?.provider);
       
-      // Configura as categorias para qualquer tipo de login
       if (user.id) {
         try {
           await setupUserCategories(user.id);
