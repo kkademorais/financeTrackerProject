@@ -12,7 +12,13 @@ import { useCategories } from "@/hooks/use-categories";
 interface QuickAddTransactionProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddTransaction: (transaction: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => Promise<void>;
+  onAddTransaction: (transaction: {
+    description: string;
+    amount: number;
+    type: TransactionType;
+    categoryId: string;
+    date: Date;
+  }) => Promise<void>;
 }
 
 export function QuickAddTransaction({

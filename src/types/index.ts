@@ -26,7 +26,7 @@ export interface Transaction {
   date: Date | string;
   type: TransactionType;
   categoryId: string;
-  category: Category;
+  category?: Category;
   userId: string;
   createdAt: Date | string;
   updatedAt: Date | string;
