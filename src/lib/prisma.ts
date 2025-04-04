@@ -4,12 +4,23 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma =
-  global.prisma ||
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+const prismaClientSingleton = () => {
+  console.log("[PRISMA] Initializing Prisma Client with URL:", 
+    process.env.DATABASE_URL?.replace(/\/\/.*@/, "//***@")
+  );
+  
+  return new PrismaClient({
+    log: ['error', 'warn'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL
+      }
+    }
   });
+};
+
+export const prisma = globalThis.prisma ?? prismaClientSingleton();
 
 if (process.env.NODE_ENV !== "production") {
-  global.prisma = prisma;
+  globalThis.prisma = prisma;
 } 

@@ -32,16 +32,7 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
         ],
-      },
-      {
-        source: '/api/transactions',
-        headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
-        ],
-      },
+      }
     ];
   },
   // Configuração de rotas
@@ -50,12 +41,21 @@ const nextConfig = {
       {
         source: '/api/:path*',
         destination: '/api/:path*',
-      },
+      }
     ];
   },
-  // Outras configurações
+  // Configuração de redirecionamentos
+  async redirects() {
+    return [];
+  },
+  // Configuração de rotas
   trailingSlash: false,
-  poweredByHeader: false
+  poweredByHeader: false,
+  // Configuração de build
+  output: 'standalone',
+  experimental: {
+    serverActions: true,
+  },
 }
 
 module.exports = nextConfig 
