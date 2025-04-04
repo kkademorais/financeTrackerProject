@@ -14,7 +14,7 @@ interface UseFetchTransactionsOptions {
 
 export function useFetchTransactions(options: UseFetchTransactionsOptions = {}) {
   const { transactions, isLoading } = useTransactions();
-  
+
   // Filtragem local para simular filtros de API
   const filteredData = filterTransactions(transactions, options);
 

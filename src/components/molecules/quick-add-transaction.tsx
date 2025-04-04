@@ -6,19 +6,13 @@ import { Button } from "@/components/atoms/ui/button";
 import { Input } from "@/components/atoms/ui/input";
 import { Label } from "@/components/atoms/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/atoms/ui/select";
-import { TransactionType } from "@/types";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
+import { Transaction, TransactionType, Category } from "@/types";
+import { useCategories } from "@/hooks/use-categories";
 
 interface QuickAddTransactionProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddTransaction: (transaction: {
-    description: string;
-    amount: number;
-    type: TransactionType;
-    categoryId: string;
-    date: Date;
-  }) => void;
+  onAddTransaction: (transaction: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => Promise<void>;
 }
 
 export function QuickAddTransaction({
@@ -31,16 +25,27 @@ export function QuickAddTransaction({
   const [type, setType] = useState<TransactionType>("EXPENSE");
   const [categoryId, setCategoryId] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const { expenseCategories, incomeCategories, isLoading } = useCategories();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onAddTransaction({
+    const selectedCategory = type === "INCOME" 
+      ? incomeCategories.find(c => c.id === categoryId)
+      : expenseCategories.find(c => c.id === categoryId);
+
+    if (!selectedCategory) {
+      return;
+    }
+
+    await onAddTransaction({
       description,
       amount: Number(amount),
       type,
       categoryId,
+      category: selectedCategory as Category,
       date: new Date(date),
     });
+
     setDescription("");
     setAmount("");
     setType("EXPENSE");
@@ -49,7 +54,7 @@ export function QuickAddTransaction({
     onOpenChange(false);
   };
 
-  const categories = type === "INCOME" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const categories = type === "INCOME" ? incomeCategories : expenseCategories;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,11 +104,21 @@ export function QuickAddTransaction({
                 <SelectValue placeholder="Selecione a categoria" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
+                {isLoading ? (
+                  <SelectItem value="" disabled>
+                    Carregando categorias...
                   </SelectItem>
-                ))}
+                ) : categories.length === 0 ? (
+                  <SelectItem value="" disabled>
+                    Nenhuma categoria encontrada
+                  </SelectItem>
+                ) : (
+                  categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -117,7 +132,7 @@ export function QuickAddTransaction({
               required
             />
           </div>
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-full" disabled={isLoading}>
             Adicionar
           </Button>
         </form>

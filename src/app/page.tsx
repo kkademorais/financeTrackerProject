@@ -1,17 +1,18 @@
 "use client";
 
 import { useTransactions } from "@/contexts/transactions-context";
-import { QuickAddTransaction } from "@/components/molecules/quick-add-transaction";
-import { Button } from "@/components/atoms/ui/button";
-import { Plus } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { useState } from "react";
-import { TransactionType } from "@/types";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
+import { QuickAddTransaction } from "@/components/organisms/dashboard/quick-add-transaction";
+import { MonthlyOverview } from "@/components/organisms/dashboard/monthly-overview";
+import { ExpensesByCategory } from "@/components/organisms/dashboard/expenses-by-category";
+import { RecentTransactions } from "@/components/organisms/dashboard/recent-transactions";
+import { TransactionCalendar } from "@/components/organisms/dashboard/transaction-calendar";
+import { formatCurrency } from "@/lib/utils";
+import { ArrowUpCircle, ArrowDownCircle, Wallet } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/atoms/ui/card";
+import { Skeleton } from "@/components/atoms/ui/skeleton";
 
 export default function HomePage() {
-  const { transactions, isLoading, addTransaction } = useTransactions();
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const { transactions, isLoading } = useTransactions();
 
   const totalIncome = transactions
     .filter((t) => t.type === "INCOME")
@@ -24,106 +25,131 @@ export default function HomePage() {
   const balance = totalIncome - totalExpenses;
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-card p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">Receitas</h2>
-          <p className="text-2xl font-bold text-green-600">
-            {formatCurrency(totalIncome)}
+    <div className="container mx-auto py-8 space-y-8 px-4 sm:px-6 lg:px-8">
+      {/* Header with Overview Cards */}
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard Financeiro</h1>
+          <p className="text-sm text-muted-foreground">
+            Gerencie suas finanças de forma simples e eficiente
           </p>
         </div>
-        <div className="bg-card p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">Despesas</h2>
-          <p className="text-2xl font-bold text-red-600">
-            {formatCurrency(totalExpenses)}
-          </p>
-        </div>
-        <div className="bg-card p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-2">Saldo</h2>
-          <p
-            className={`text-2xl font-bold ${
-              balance >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
-            {formatCurrency(balance)}
-          </p>
+
+        {/* Overview Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <ArrowUpCircle className="h-4 w-4 text-green-500" />
+                Receitas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-32" />
+              ) : (
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(totalIncome)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <ArrowDownCircle className="h-4 w-4 text-red-500" />
+                Despesas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-32" />
+              ) : (
+                <p className="text-2xl font-bold text-red-600">
+                  {formatCurrency(totalExpenses)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          <Card className="sm:col-span-2 lg:col-span-1">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Saldo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-32" />
+              ) : (
+                <p className={`text-2xl font-bold ${
+                  balance >= 0 ? "text-green-600" : "text-red-600"
+                }`}>
+                  {formatCurrency(balance)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Últimas Transações</h1>
-        <Button onClick={() => setIsAddDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova Transação
-        </Button>
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Transaction Management */}
+        <div className="space-y-6">
+          <QuickAddTransaction />
+          <Card>
+            <CardHeader>
+              <CardTitle>Transações Recentes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RecentTransactions />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column - Analytics */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Visão Mensal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-[300px] w-full" />
+              ) : (
+                <MonthlyOverview />
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Despesas por Categoria</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-[300px] w-full" />
+              ) : (
+                <ExpensesByCategory />
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      ) : transactions.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Nenhuma transação encontrada.</p>
-        </div>
-      ) : (
-        <div className="bg-card rounded-lg shadow">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-4 px-6">Data</th>
-                  <th className="text-left py-4 px-6">Descrição</th>
-                  <th className="text-left py-4 px-6">Categoria</th>
-                  <th className="text-left py-4 px-6">Tipo</th>
-                  <th className="text-right py-4 px-6">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.slice(0, 5).map((transaction) => {
-                  const category = transaction.type === "INCOME"
-                    ? INCOME_CATEGORIES.find(c => c.id === transaction.categoryId)
-                    : EXPENSE_CATEGORIES.find(c => c.id === transaction.categoryId);
-                  
-                  return (
-                    <tr key={transaction.id} className="border-b">
-                      <td className="py-4 px-6">{formatDate(transaction.date)}</td>
-                      <td className="py-4 px-6">{transaction.description}</td>
-                      <td className="py-4 px-6">{category?.name || "Outros"}</td>
-                      <td className="py-4 px-6">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs ${
-                            transaction.type === "INCOME"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {transaction.type === "INCOME" ? "Receita" : "Despesa"}
-                        </span>
-                      </td>
-                      <td
-                        className={`py-4 px-6 text-right ${
-                          transaction.type === "INCOME"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {formatCurrency(transaction.amount)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <QuickAddTransaction
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        onAddTransaction={addTransaction}
-      />
+      {/* Calendar View */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Calendário de Transações</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <Skeleton className="h-[400px] w-full" />
+          ) : (
+            <TransactionCalendar />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 } 

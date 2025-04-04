@@ -23,6 +23,8 @@ import {
   Gift,
   HelpCircle,
 } from "lucide-react";
+import { startOfMonth, endOfMonth, eachDayOfInterval, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const ICONS = {
   Utensils,
@@ -76,47 +78,111 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function MonthlyOverview() {
   const { transactions } = useTransactions();
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const currentDate = new Date();
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  const monthlyTransactions = transactions.filter((t) => {
-    const date = new Date(t.date);
-    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  // Preparar dados para o gráfico
+  const chartData = daysInMonth.map(date => {
+    const dayTransactions = transactions.filter(t => {
+      const transactionDate = new Date(t.date);
+      return format(transactionDate, "yyyy-MM-dd") === format(date, "yyyy-MM-dd");
+    });
+
+    const income = dayTransactions
+      .filter(t => t.type === "INCOME")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const expense = dayTransactions
+      .filter(t => t.type === "EXPENSE")
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+      date: format(date, "dd/MM", { locale: ptBR }),
+      income,
+      expense,
+    };
   });
 
-  const totalIncome = monthlyTransactions
-    .filter((t) => t.type === "INCOME")
+  // Calcular totais do mês
+  const monthlyIncome = transactions
+    .filter(t => {
+      const date = new Date(t.date);
+      return date >= monthStart && date <= monthEnd && t.type === "INCOME";
+    })
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalExpenses = monthlyTransactions
-    .filter((t) => t.type === "EXPENSE")
+  const monthlyExpense = transactions
+    .filter(t => {
+      const date = new Date(t.date);
+      return date >= monthStart && date <= monthEnd && t.type === "EXPENSE";
+    })
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const balance = totalIncome - totalExpenses;
+  const balance = monthlyIncome - monthlyExpense;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <div className="bg-card p-6 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-2">Receitas do Mês</h2>
-        <p className="text-2xl font-bold text-green-600">
-          {formatCurrency(totalIncome)}
-        </p>
-      </div>
-      <div className="bg-card p-6 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-2">Despesas do Mês</h2>
-        <p className="text-2xl font-bold text-red-600">
-          {formatCurrency(totalExpenses)}
-        </p>
-      </div>
-      <div className="bg-card p-6 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-2">Saldo do Mês</h2>
-        <p
-          className={`text-2xl font-bold ${
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="rounded-lg bg-card p-4">
+          <p className="text-sm font-medium text-muted-foreground">Receitas do Mês</p>
+          <p className="text-2xl font-bold text-green-600">
+            {formatCurrency(monthlyIncome)}
+          </p>
+        </div>
+        <div className="rounded-lg bg-card p-4">
+          <p className="text-sm font-medium text-muted-foreground">Despesas do Mês</p>
+          <p className="text-2xl font-bold text-red-600">
+            {formatCurrency(monthlyExpense)}
+          </p>
+        </div>
+        <div className="rounded-lg bg-card p-4">
+          <p className="text-sm font-medium text-muted-foreground">Saldo do Mês</p>
+          <p className={`text-2xl font-bold ${
             balance >= 0 ? "text-green-600" : "text-red-600"
-          }`}
-        >
-          {formatCurrency(balance)}
-        </p>
+          }`}>
+            {formatCurrency(balance)}
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-lg bg-card p-4">
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={chartData}>
+            <XAxis 
+              dataKey="date" 
+              stroke="#888888"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              stroke="#888888"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(value) => `R$${value}`}
+            />
+            <Tooltip
+              formatter={(value: number) => formatCurrency(value)}
+              labelFormatter={(label) => `Data: ${label}`}
+            />
+            <Legend />
+            <Bar
+              dataKey="income"
+              name="Receitas"
+              fill="#22c55e"
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar
+              dataKey="expense"
+              name="Despesas"
+              fill="#ef4444"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

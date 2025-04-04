@@ -5,6 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 import { compare } from "bcryptjs";
+import { setupUserCategories } from "./categories";
 
 import { prisma } from "@/lib/prisma";
 
@@ -47,7 +48,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials");
+          return null;
         }
 
         const user = await prisma.user.findUnique({
@@ -57,16 +58,16 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user || !user.password) {
-          throw new Error("Invalid credentials");
+          return null;
         }
 
-        const isPasswordValid = await compare(
+        const passwordsMatch = await compare(
           credentials.password,
           user.password
         );
 
-        if (!isPasswordValid) {
-          throw new Error("Invalid credentials");
+        if (!passwordsMatch) {
+          return null;
         }
 
         return {
@@ -88,26 +89,23 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        return {
-          ...token,
-          id: user.id,
-        };
+        token.sub = user.id;
       }
       return token;
     },
     async session({ session, token }) {
-      return {
-        ...session,
-        user: {
-          ...session.user,
-          id: token.id,
-        },
-      };
+      if (session?.user) {
+        session.user.id = token.sub!;
+      }
+      return session;
     },
   },
   events: {
-    async signIn({ user, account }) {
-      console.log("[Auth] SignIn Event - User:", user.id, "Account:", account?.type);
+    async signIn({ user }) {
+      // Configura as categorias para qualquer tipo de login
+      if (user.id) {
+        await setupUserCategories(user.id);
+      }
     },
     async signOut({ token }) {
       console.log("[Auth] SignOut Event - Token:", token.id);
