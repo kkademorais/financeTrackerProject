@@ -35,7 +35,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
-    signIn: "/login",
+    signIn: "/auth/signin",
     error: "/login",
   },
   debug: process.env.NODE_ENV === "development",
@@ -103,6 +103,17 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.sub!;
       }
       return session;
+    },
+    async signIn({ user }) {
+      if (user.id) {
+        console.log("[AUTH] User signed in, setting up categories:", user.id);
+        try {
+          await setupUserCategories(user.id);
+        } catch (error) {
+          console.error("[AUTH] Error setting up categories:", error);
+        }
+      }
+      return true;
     },
   },
   events: {

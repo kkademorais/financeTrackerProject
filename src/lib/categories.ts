@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "./constants";
 
 export const setupUserCategories = async (userId: string) => {
   try {
@@ -11,155 +12,50 @@ export const setupUserCategories = async (userId: string) => {
       },
     });
     
-    // Se o usuário já tem categorias, não cria novas
-    if (existingCategories.length > 0) {
-      console.log("[setupUserCategories] Usuário já possui categorias:", existingCategories.length);
-      return existingCategories;
+    console.log("[setupUserCategories] Categorias existentes:", existingCategories.length);
+
+    // Mapeia as categorias existentes por nome para fácil verificação
+    const existingCategoryNames = new Set(existingCategories.map(c => c.name));
+    
+    // Combina todas as categorias padrão
+    const defaultCategories = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
+    
+    // Filtra apenas as categorias que não existem
+    const missingCategories = defaultCategories.filter(
+      category => !existingCategoryNames.has(category.name)
+    );
+    
+    console.log("[setupUserCategories] Categorias faltantes:", missingCategories.length);
+
+    if (missingCategories.length > 0) {
+      // Prepara os dados para criação
+      const categoriesToCreate = missingCategories.map(category => ({
+        name: category.name,
+        color: category.color,
+        icon: category.icon,
+        userId: userId
+      }));
+
+      // Cria as categorias faltantes
+      const createdCategories = await prisma.$transaction(
+        categoriesToCreate.map(category =>
+          prisma.category.create({
+            data: category
+          })
+        )
+      );
+
+      console.log("[setupUserCategories] Categorias criadas:", createdCategories.length);
+
+      // Retorna todas as categorias (existentes + novas)
+      const allCategories = [...existingCategories, ...createdCategories];
+      console.log("[setupUserCategories] Total de categorias:", allCategories.length);
+      
+      return allCategories;
     }
-    
-    console.log("[setupUserCategories] Criando categorias para o usuário");
-    
-    const now = new Date().toISOString();
-    
-    const EXPENSE_CATEGORIES = [
-      { 
-        id: `moradia_${userId}`, 
-        name: "Moradia", 
-        color: "#118AB2",
-        icon: "Home",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `alimentacao_${userId}`, 
-        name: "Alimentação", 
-        color: "#FF6B6B",
-        icon: "Utensils",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `transporte_${userId}`, 
-        name: "Transporte", 
-        color: "#4ECDC4",
-        icon: "Car",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `saude_${userId}`, 
-        name: "Saúde", 
-        color: "#FF9A8B",
-        icon: "Heart",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `educacao_${userId}`, 
-        name: "Educação", 
-        color: "#A78BFA",
-        icon: "GraduationCap",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `lazer_${userId}`, 
-        name: "Lazer", 
-        color: "#FFD166",
-        icon: "Gamepad2",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `despesas_pessoais_${userId}`, 
-        name: "Despesas Pessoais", 
-        color: "#F472B6",
-        icon: "User",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `financas_${userId}`, 
-        name: "Finanças", 
-        color: "#06D6A0",
-        icon: "CircleDollarSign",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `dependentes_${userId}`, 
-        name: "Dependentes", 
-        color: "#38BDF8",
-        icon: "Users",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `outros_${userId}`, 
-        name: "Outros", 
-        color: "#94A3B8",
-        icon: "HelpCircle",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
 
-    const INCOME_CATEGORIES = [
-      { 
-        id: `salario_${userId}`, 
-        name: "Salário", 
-        color: "#4CAF50",
-        icon: "Briefcase",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `freelance_${userId}`, 
-        name: "Freelance", 
-        color: "#2196F3",
-        icon: "Laptop",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      { 
-        id: `investimentos_${userId}`, 
-        name: "Investimentos", 
-        color: "#FFC107",
-        icon: "TrendingUp",
-        userId,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
-
-    // Cria todas as categorias em uma única transação
-    await prisma.category.createMany({
-      data: [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES],
-      skipDuplicates: true, // Pula categorias que já existem
-    });
-    
-    // Busca todas as categorias criadas
-    const createdCategories = await prisma.category.findMany({
-      where: {
-        userId: userId,
-      },
-    });
-    
-    console.log("[setupUserCategories] Categorias criadas:", createdCategories.length);
-    
-    return createdCategories;
+    console.log("[setupUserCategories] Todas as categorias já existem");
+    return existingCategories;
   } catch (error) {
     console.error("[setupUserCategories] Erro ao configurar categorias:", error);
     throw error;

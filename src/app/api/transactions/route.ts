@@ -88,13 +88,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid date" }, { status: 400 });
     }
 
-    // Verificar se a categoria existe
-    const category = await prisma.category.findUnique({
-      where: { id: categoryId }
+    // Verificar se a categoria existe e pertence ao usuário
+    const category = await prisma.category.findFirst({
+      where: { 
+        id: categoryId,
+        userId: session.user.id
+      }
     });
 
     if (!category) {
-      console.error("[TRANSACTIONS_POST] Category not found:", categoryId);
+      console.error("[TRANSACTIONS_POST] Category not found or does not belong to user:", {
+        categoryId,
+        userId: session.user.id
+      });
+      
+      // Tentar buscar a categoria sem o userId para debug
+      const anyCategory = await prisma.category.findUnique({
+        where: { id: categoryId }
+      });
+      
+      if (anyCategory) {
+        console.error("[TRANSACTIONS_POST] Category exists but belongs to another user:", {
+          categoryId,
+          categoryUserId: anyCategory.userId,
+          requestUserId: session.user.id
+        });
+      }
+      
       return NextResponse.json({ error: "Category not found" }, { status: 404 });
     }
 
@@ -115,7 +135,9 @@ export async function POST(req: Request) {
     console.log("[TRANSACTIONS_POST] Transaction created successfully:", {
       id: transaction.id,
       amount: transaction.amount,
-      type: transaction.type
+      type: transaction.type,
+      categoryId: transaction.categoryId,
+      userId: transaction.userId
     });
     
     return NextResponse.json(transaction, {

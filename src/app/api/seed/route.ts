@@ -20,32 +20,81 @@ const defaultCategories = [
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
+    console.log("[SEED] Session:", {
+      id: session?.user?.id,
+      email: session?.user?.email
+    });
 
     if (!session?.user?.id) {
-      return new NextResponse(
-        JSON.stringify({ error: "Unauthorized" }), 
-        { 
-          status: 401,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      console.error("[SEED] No session or user ID");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    console.log("[SEED] Iniciando seed para usuário:", session.user.id);
 
     // Verifica se o usuário já tem categorias
     const existingCategories = await prisma.category.findMany({
       where: { userId: session.user.id }
     });
 
-    if (existingCategories.length > 0) {
-      console.log("[SEED] Usuário já possui categorias");
-      return NextResponse.json({ message: "Categories already exist" });
+    console.log("[SEED] Existing categories:", existingCategories.length);
+
+    // Mesmo que existam categorias, vamos garantir que todas as padrões existam
+    const existingNames = new Set(existingCategories.map(c => c.name));
+    const missingCategories = defaultCategories.filter(c => !existingNames.has(c.name));
+
+    console.log("[SEED] Missing categories:", missingCategories.length);
+
+    if (missingCategories.length > 0) {
+      // Cria as categorias que faltam
+      const newCategories = await Promise.all(
+        missingCategories.map(category =>
+          prisma.category.create({
+            data: {
+              ...category,
+              userId: session.user.id
+            }
+          })
+        )
+      );
+
+      console.log("[SEED] Created new categories:", newCategories.length);
+
+      // Retorna todas as categorias
+      const allCategories = [...existingCategories, ...newCategories];
+      return NextResponse.json(allCategories);
     }
 
-    // Cria as categorias padrão
+    return NextResponse.json(existingCategories);
+  } catch (error: any) {
+    console.error("[SEED] Error:", error);
+    return NextResponse.json(
+      { error: error.message }, 
+      { status: 500 }
+    );
+  }
+}
+
+// Adiciona rota POST para forçar recriação das categorias
+export async function POST() {
+  try {
+    const session = await getServerSession(authOptions);
+    console.log("[SEED] Force recreate - Session:", {
+      id: session?.user?.id,
+      email: session?.user?.email
+    });
+
+    if (!session?.user?.id) {
+      console.error("[SEED] Force recreate - No session or user ID");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Deleta todas as categorias existentes do usuário
+    await prisma.category.deleteMany({
+      where: { userId: session.user.id }
+    });
+
+    console.log("[SEED] Force recreate - Deleted existing categories");
+
+    // Cria todas as categorias padrão
     const categories = await Promise.all(
       defaultCategories.map(category =>
         prisma.category.create({
@@ -57,19 +106,14 @@ export async function GET() {
       )
     );
 
-    console.log("[SEED] Categorias criadas com sucesso:", categories.length);
+    console.log("[SEED] Force recreate - Created categories:", categories.length);
 
     return NextResponse.json(categories);
-  } catch (error) {
-    console.error("[SEED]", error);
-    return new NextResponse(
-      JSON.stringify({ error: "Internal server error" }), 
-      { 
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+  } catch (error: any) {
+    console.error("[SEED] Force recreate - Error:", error);
+    return NextResponse.json(
+      { error: error.message }, 
+      { status: 500 }
     );
   }
 } 
