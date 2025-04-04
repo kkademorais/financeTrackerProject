@@ -15,7 +15,9 @@ export type IconType =
   | "Laptop"
   | "TrendingUp"
   | "Gift"
-  | "HelpCircle";
+  | "HelpCircle"
+  | "User"
+  | "Users";
 
 export interface Transaction {
   id: string;

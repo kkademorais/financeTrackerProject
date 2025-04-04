@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
+import { setupUserCategories } from "@/lib/categories";
 
 export async function POST(req: Request) {
   try {
@@ -50,6 +51,8 @@ export async function POST(req: Request) {
         categories: true,
       },
     });
+
+    await setupUserCategories(user.id);
 
     const { password: _, ...userWithoutPassword } = user;
     return NextResponse.json(userWithoutPassword);

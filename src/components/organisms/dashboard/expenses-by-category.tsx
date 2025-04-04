@@ -126,7 +126,7 @@ export function ExpensesByCategory() {
             <Legend />
           </PieChart>
         </ResponsiveContainer>
-      </div>
+          </div>
 
       {/* Lista de Categorias */}
       <div className="space-y-4">
@@ -138,10 +138,10 @@ export function ExpensesByCategory() {
                 <div className="flex items-center gap-2">
                   <Icon className="h-4 w-4" style={{ color }} />
                   <span className="text-sm font-medium">{name}</span>
-                </div>
+          </div>
                 <span className="text-sm text-muted-foreground">
                   {formatCurrency(value)} ({percentage}%)
-                </span>
+              </span>
               </div>
               <div className="h-2 bg-muted rounded-full">
                 <div
@@ -152,7 +152,7 @@ export function ExpensesByCategory() {
             </div>
           );
         })}
-      </div>
-    </div>
+            </div>
+          </div>
   );
 } 

@@ -22,64 +22,96 @@ export function useCategories(): UseCategoriesReturn {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch("/api/categories");
-      if (!response.ok) {
-        throw new Error("Failed to fetch categories");
+      console.log("[useCategories] Iniciando busca de categorias");
+      console.log("[useCategories] Session:", session);
+      
+      if (!session?.user?.id) {
+        console.log("[useCategories] Usuário não autenticado, usando categorias padrão");
+        const defaultCategories = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map(cat => ({
+          ...cat,
+          transactions: [],
+        }));
+        console.log("[useCategories] Categorias padrão:", defaultCategories);
+        setCategories(defaultCategories);
+        setIsLoading(false);
+        return;
       }
+      
+      const response = await fetch("/api/categories");
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("[useCategories] Erro ao buscar categorias:", response.status, errorData);
+        throw new Error(`Failed to fetch categories: ${response.status}`);
+      }
+      
       const data = await response.json();
-      setCategories(data);
+      console.log("[useCategories] Categorias recebidas do servidor:", data);
+      
+      if (!Array.isArray(data) || data.length === 0) {
+        console.log("[useCategories] Nenhuma categoria recebida, usando categorias padrão");
+        const defaultCategories = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map(cat => ({
+          ...cat,
+          transactions: [],
+        }));
+        setCategories(defaultCategories);
+      } else {
+        setCategories(data);
+      }
     } catch (error) {
-      console.error("Error fetching categories:", error);
+      console.error("[useCategories] Erro ao buscar categorias:", error);
       toast({
         variant: "destructive",
         title: "Erro ao carregar categorias",
         description: "Não foi possível carregar suas categorias. Tente novamente mais tarde.",
       });
       // Em caso de erro, use as categorias padrão
-      setCategories([...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map(cat => ({
+      const defaultCategories = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map(cat => ({
         ...cat,
         transactions: [],
-      })));
+      }));
+      setCategories(defaultCategories);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log("[useCategories] Status de autenticação:", status);
+    console.log("[useCategories] Session no useEffect:", session);
+    
     if (status === "authenticated") {
       fetchCategories();
     } else {
       // Se não estiver autenticado, use as categorias padrão
-      setCategories([...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map(cat => ({
+      const defaultCategories = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map(cat => ({
         ...cat,
         transactions: [],
-      })));
+      }));
+      console.log("[useCategories] Usando categorias padrão no useEffect:", defaultCategories);
+      setCategories(defaultCategories);
       setIsLoading(false);
     }
-  }, [status]);
+  }, [status, session]);
 
   // Filtra as categorias por tipo
-  const expenseCategories = categories.length > 0 
-    ? categories.filter(cat => 
-        EXPENSE_CATEGORIES.some(ec => ec.id === cat.id) || // Verifica se é uma categoria de despesa padrão
-        cat.transactions?.some(t => t.type === "EXPENSE") || // Ou se tem transações de despesa
-        (!cat.transactions?.length && cat.id.startsWith('expense_')) // Ou se é uma nova categoria de despesa
-      )
-    : EXPENSE_CATEGORIES.map(cat => ({
-        ...cat,
-        transactions: [],
-      }));
+  const expenseCategories = categories.filter(cat => {
+    const isExpenseCategory = EXPENSE_CATEGORIES.some(ec => ec.name === cat.name);
+    console.log(`[useCategories] Verificando categoria ${cat.name}: isExpenseCategory=${isExpenseCategory}`);
+    return isExpenseCategory;
+  });
 
-  const incomeCategories = categories.length > 0
-    ? categories.filter(cat => 
-        INCOME_CATEGORIES.some(ic => ic.id === cat.id) || // Verifica se é uma categoria de receita padrão
-        cat.transactions?.some(t => t.type === "INCOME") || // Ou se tem transações de receita
-        (!cat.transactions?.length && cat.id.startsWith('income_')) // Ou se é uma nova categoria de receita
-      )
-    : INCOME_CATEGORIES.map(cat => ({
-        ...cat,
-        transactions: [],
-      }));
+  const incomeCategories = categories.filter(cat => {
+    const isIncomeCategory = INCOME_CATEGORIES.some(ic => ic.name === cat.name);
+    console.log(`[useCategories] Verificando categoria ${cat.name}: isIncomeCategory=${isIncomeCategory}`);
+    return isIncomeCategory;
+  });
+
+  console.log("[useCategories] Categorias filtradas:", {
+    todas: categories.length,
+    despesas: expenseCategories.length,
+    receitas: incomeCategories.length
+  });
 
   return {
     categories,

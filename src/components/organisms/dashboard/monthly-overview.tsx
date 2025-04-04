@@ -145,7 +145,7 @@ export function MonthlyOverview() {
             {formatCurrency(balance)}
           </p>
         </div>
-      </div>
+          </div>
 
       <div className="rounded-lg bg-card p-4">
         <ResponsiveContainer width="100%" height={300}>
@@ -183,7 +183,7 @@ export function MonthlyOverview() {
             />
           </BarChart>
         </ResponsiveContainer>
-      </div>
-    </div>
+          </div>
+          </div>
   );
 } 

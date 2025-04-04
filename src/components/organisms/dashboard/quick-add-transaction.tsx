@@ -63,14 +63,30 @@ export function QuickAddTransaction({ onTransactionAdded, className }: QuickAddT
   const transactionType = watch("type");
   const categories = transactionType === "INCOME" ? incomeCategories : expenseCategories;
 
+  console.log("[QuickAddTransaction] Estado atual:", {
+    transactionType,
+    expenseCategories,
+    incomeCategories,
+    selectedCategories: categories,
+    isLoading,
+  });
+
   const onSubmit = async (data: TransactionFormData) => {
+    console.log("[QuickAddTransaction] Dados do formulário:", data);
     setIsSubmitting(true);
     try {
       const selectedCategory = transactionType === "INCOME"
         ? incomeCategories.find((c: Category) => c.id === data.categoryId)
         : expenseCategories.find((c: Category) => c.id === data.categoryId);
 
+      console.log("[QuickAddTransaction] Categoria selecionada:", selectedCategory);
+
       if (!selectedCategory) {
+        console.error("[QuickAddTransaction] Categoria não encontrada:", {
+          categoryId: data.categoryId,
+          type: transactionType,
+          availableCategories: transactionType === "INCOME" ? incomeCategories : expenseCategories
+        });
         toast({
           title: "Erro",
           description: "Categoria selecionada não encontrada.",
@@ -93,6 +109,7 @@ export function QuickAddTransaction({ onTransactionAdded, className }: QuickAddT
       reset();
       onTransactionAdded?.();
     } catch (error) {
+      console.error("[QuickAddTransaction] Erro ao registrar transação:", error);
       toast({
         title: "Ops! Algo deu errado",
         description: "Não foi possível registrar sua transação. Tente novamente.",
@@ -104,70 +121,13 @@ export function QuickAddTransaction({ onTransactionAdded, className }: QuickAddT
   };
 
   return (
-    <Card className={cn("transition-all duration-300 hover:scale-[1.02] hover:shadow-lg", className)}>
+    <Card className={cn("w-full", className)}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-2xl">
-          <Plus className="h-6 w-6" />
-          Nova Transação
-        </CardTitle>
-        <CardDescription className="text-base">
-          Registre suas movimentações financeiras
-        </CardDescription>
+        <CardTitle>Nova Transação</CardTitle>
+        <CardDescription>Registre suas movimentações financeiras</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="group space-y-2 transition-all duration-200 hover:scale-[1.02]">
-              <Label htmlFor="amount" className="flex items-center gap-2 text-base">
-                <DollarSign className="h-4 w-4" />
-                Valor
-                </Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                placeholder="0,00"
-                className="transition-all duration-200 group-hover:border-primary"
-                {...register("amount", { valueAsNumber: true })}
-              />
-              {errors.amount && (
-                <p className="text-sm text-red-500">{errors.amount.message}</p>
-              )}
-            </div>
-
-            <div className="group space-y-2 transition-all duration-200 hover:scale-[1.02]">
-              <Label className="flex items-center gap-2 text-base">
-                <CalendarIcon className="h-4 w-4" />
-                Data
-              </Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal transition-all duration-200 group-hover:border-primary",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(newDate) => {
-                      setDate(newDate || new Date());
-                      setValue("date", newDate || new Date());
-                    }}
-                    initialFocus
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-
           <div className="group space-y-2 transition-all duration-200 hover:scale-[1.02]">
             <Label htmlFor="description" className="flex items-center gap-2 text-base">
               <FileText className="h-4 w-4" />
@@ -193,6 +153,7 @@ export function QuickAddTransaction({ onTransactionAdded, className }: QuickAddT
               <RadioGroup
                 value={transactionType}
                 onValueChange={(value) => {
+                  console.log("[QuickAddTransaction] Tipo alterado:", value);
                   setValue("type", value as TransactionType);
                   setValue("categoryId", "");
                 }}
@@ -219,7 +180,10 @@ export function QuickAddTransaction({ onTransactionAdded, className }: QuickAddT
               </Label>
               <Select 
                 value={watch("categoryId")}
-                onValueChange={(value) => setValue("categoryId", value)}
+                onValueChange={(value) => {
+                  console.log("[QuickAddTransaction] Categoria selecionada:", value);
+                  setValue("categoryId", value);
+                }}
               >
                 <SelectTrigger className="transition-all duration-200 group-hover:border-primary">
                   <SelectValue placeholder="Selecione uma categoria" />
@@ -243,11 +207,11 @@ export function QuickAddTransaction({ onTransactionAdded, className }: QuickAddT
                         <div className="flex items-center gap-2">
                           <div
                             className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: category.color }}
-                        />
-                        {category.name}
-                      </div>
-                    </SelectItem>
+                            style={{ backgroundColor: category.color }}
+                          />
+                          {category.name}
+                        </div>
+                      </SelectItem>
                     ))
                   )}
                 </SelectContent>
@@ -256,6 +220,59 @@ export function QuickAddTransaction({ onTransactionAdded, className }: QuickAddT
                 <p className="text-sm text-red-500">{errors.categoryId.message}</p>
               )}
             </div>
+          </div>
+
+          <div className="group space-y-2 transition-all duration-200 hover:scale-[1.02]">
+            <Label htmlFor="amount" className="flex items-center gap-2 text-base">
+              <DollarSign className="h-4 w-4" />
+              Valor
+            </Label>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              placeholder="0,00"
+              className="transition-all duration-200 group-hover:border-primary"
+              {...register("amount", { valueAsNumber: true })}
+            />
+            {errors.amount && (
+              <p className="text-sm text-red-500">{errors.amount.message}</p>
+            )}
+          </div>
+
+          <div className="group space-y-2 transition-all duration-200 hover:scale-[1.02]">
+            <Label className="flex items-center gap-2 text-base">
+              <CalendarIcon className="h-4 w-4" />
+              Data
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(newDate) => {
+                    setDate(newDate || new Date());
+                    setValue("date", newDate || new Date());
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            {errors.date && (
+              <p className="text-sm text-red-500">{errors.date.message}</p>
+            )}
           </div>
 
           <Button 

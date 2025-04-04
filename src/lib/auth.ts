@@ -102,9 +102,16 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async signIn({ user }) {
+      console.log("[Auth] SignIn Event - User:", user.id);
+      
       // Configura as categorias para qualquer tipo de login
       if (user.id) {
-        await setupUserCategories(user.id);
+        try {
+          await setupUserCategories(user.id);
+          console.log("[Auth] Categorias configuradas com sucesso para o usuário:", user.id);
+        } catch (error) {
+          console.error("[Auth] Erro ao configurar categorias:", error);
+        }
       }
     },
     async signOut({ token }) {

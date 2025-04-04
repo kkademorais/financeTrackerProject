@@ -10,7 +10,8 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
+      console.error("[CATEGORIES_GET] Usuário não autenticado");
       return new NextResponse(
         JSON.stringify({ error: "Unauthorized" }), 
         { 
@@ -22,11 +23,11 @@ export async function GET() {
       );
     }
 
+    console.log("[CATEGORIES_GET] Buscando categorias para o usuário:", session.user.id);
+
     const categories = await prisma.category.findMany({
       where: {
-        user: {
-          email: session.user.email,
-        },
+        userId: session.user.id,
       },
       include: {
         transactions: {
@@ -39,6 +40,8 @@ export async function GET() {
         name: "asc",
       },
     });
+
+    console.log("[CATEGORIES_GET] Categorias encontradas:", categories.length);
 
     return NextResponse.json(categories);
   } catch (error) {
