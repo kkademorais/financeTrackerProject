@@ -2,8 +2,26 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { NextRequestWithAuth } from "next-auth/middleware";
 
+// Função auxiliar para adicionar headers CORS
+function corsHeaders(origin: string) {
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
+
 export default async function middleware(req: NextRequestWithAuth) {
   try {
+    // Handling CORS preflight requests
+    if (req.method === "OPTIONS") {
+      return new NextResponse(null, {
+        status: 200,
+        headers: corsHeaders(req.headers.get("origin") || "*"),
+      });
+    }
+
     const token = await getToken({ 
       req,
       secret: process.env.NEXTAUTH_SECRET 
@@ -17,10 +35,20 @@ export default async function middleware(req: NextRequestWithAuth) {
     const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
     // Lista de rotas que devem ser ignoradas
-    const ignoredRoutes = ['/api', '/_next', '/static', '/favicon.ico'];
+    const ignoredRoutes = ['/_next', '/static', '/favicon.ico'];
     const shouldIgnore = ignoredRoutes.some(route => pathname.startsWith(route));
 
     if (shouldIgnore) return null;
+
+    // Se for uma rota de API, apenas adicione os headers CORS
+    if (pathname.startsWith('/api')) {
+      const response = NextResponse.next();
+      const headers = corsHeaders(req.headers.get("origin") || "*");
+      Object.entries(headers).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
+    }
 
     // Redirecionar página inicial
     if (pathname === '/') {
@@ -50,13 +78,6 @@ export default async function middleware(req: NextRequestWithAuth) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }; 
