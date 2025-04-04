@@ -22,25 +22,27 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   const fetchTransactions = async () => {
     try {
-      console.log("Fetching transactions...");
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      const response = await fetch(`${baseUrl}/api/transactions`, {
-        method: "GET",
+      console.log("[TransactionsProvider] Fetching transactions...");
+      const response = await fetch('/api/transactions', {
+        method: 'GET',
+        credentials: 'include',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       });
 
-      console.log("Response status:", response.status);
-      
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Error response:", errorData);
-        throw new Error(`Failed to fetch transactions: ${response.status} ${errorData}`);
+        const errorText = await response.text();
+        console.error("[TransactionsProvider] Error response:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Failed to fetch transactions: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
-      console.log("Fetched transactions:", data);
+      console.log("[TransactionsProvider] Transactions fetched:", data);
 
       setTransactions(data.map((t: any) => ({
         ...t,
@@ -49,7 +51,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         updatedAt: new Date(t.updatedAt)
       })));
     } catch (error) {
-      console.error("Error fetching transactions:", error);
+      console.error("[TransactionsProvider] Error fetching transactions:", error);
       toast({
         variant: "destructive",
         title: "Erro ao carregar transações",
@@ -61,33 +63,35 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && session?.user?.email) {
       fetchTransactions();
     }
-  }, [status]);
+  }, [status, session?.user?.email]);
 
   const addTransaction = async (transaction: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => {
     try {
-      console.log("Adding transaction:", transaction);
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      const response = await fetch(`${baseUrl}/api/transactions`, {
-        method: "POST",
+      console.log("[TransactionsProvider] Adding transaction:", transaction);
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        credentials: 'include',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(transaction),
       });
 
-      console.log("Response status:", response.status);
-
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Error response:", errorData);
-        throw new Error(`Failed to add transaction: ${response.status} ${errorData}`);
+        const errorText = await response.text();
+        console.error("[TransactionsProvider] Error response:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Failed to add transaction: ${response.status} ${errorText}`);
       }
 
       const newTransaction = await response.json();
-      console.log("New transaction:", newTransaction);
+      console.log("[TransactionsProvider] Transaction added:", newTransaction);
 
       setTransactions((prev) => [...prev, {
         ...newTransaction,
@@ -101,7 +105,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         description: "Sua transação foi registrada com sucesso.",
       });
     } catch (error) {
-      console.error("Error adding transaction:", error);
+      console.error("[TransactionsProvider] Error adding transaction:", error);
       toast({
         variant: "destructive",
         title: "Erro ao adicionar transação",

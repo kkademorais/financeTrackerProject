@@ -14,12 +14,9 @@ function corsHeaders(origin: string) {
 
 export default async function middleware(req: NextRequestWithAuth) {
   try {
-    // Handling CORS preflight requests
-    if (req.method === "OPTIONS") {
-      return new NextResponse(null, {
-        status: 200,
-        headers: corsHeaders(req.headers.get("origin") || "*"),
-      });
+    // Se for uma rota de API, permita passar
+    if (req.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.next();
     }
 
     const token = await getToken({ 
@@ -40,16 +37,6 @@ export default async function middleware(req: NextRequestWithAuth) {
 
     if (shouldIgnore) return null;
 
-    // Se for uma rota de API, apenas adicione os headers CORS
-    if (pathname.startsWith('/api')) {
-      const response = NextResponse.next();
-      const headers = corsHeaders(req.headers.get("origin") || "*");
-      Object.entries(headers).forEach(([key, value]) => {
-        response.headers.set(key, value);
-      });
-      return response;
-    }
-
     // Redirecionar página inicial
     if (pathname === '/') {
       if (!isAuth) {
@@ -64,14 +51,14 @@ export default async function middleware(req: NextRequestWithAuth) {
     }
 
     // Redirecionar usuário não autenticado tentando acessar rotas protegidas
-    if (!isPublicRoute && !isAuth && !pathname.startsWith('/api')) {
+    if (!isPublicRoute && !isAuth) {
       const from = encodeURIComponent(pathname);
       return NextResponse.redirect(new URL(`/login?from=${from}`, req.url));
     }
 
     return null;
   } catch (error) {
-    console.error('Middleware error:', error);
+    console.error('[Middleware] Error:', error);
     return NextResponse.redirect(new URL('/register', req.url));
   }
 }
