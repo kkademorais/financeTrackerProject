@@ -1,118 +1,90 @@
 "use client";
 
-import { useMemo } from "react";
-import { Doughnut } from "react-chartjs-2";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { useTransactions } from "@/contexts/transactions-context";
+import { formatCurrency } from "@/lib/utils";
+import { TransactionType } from "@/types";
+import { EXPENSE_CATEGORIES, CategoryConstant } from "@/lib/constants";
+import {
+  Utensils,
+  Car,
+  Gamepad2,
+  Lightbulb,
+  Home,
+  Shirt,
+  Heart,
+  GraduationCap,
+  ShoppingBag,
+  HelpCircle,
+} from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/atoms/ui/card";
-import { useFetchTransactions } from "@/hooks/use-fetch-transactions";
-import { formatCurrency, groupTransactionsByCategory } from "@/lib/utils";
+const ICONS = {
+  Utensils,
+  Car,
+  Gamepad2,
+  Lightbulb,
+  Home,
+  Shirt,
+  Heart,
+  GraduationCap,
+  ShoppingBag,
+  HelpCircle,
+};
 
-// Registrar os componentes do Chart.js
-ChartJS.register(ArcElement, Tooltip, Legend);
+export function ExpensesByCategory() {
+  const { transactions } = useTransactions();
 
-interface ExpensesByCategoryProps {
-  isLoading?: boolean;
-}
+  const expensesByCategory = transactions
+    .filter((t) => t.type === "EXPENSE")
+    .reduce((acc, t) => {
+      const categoryId = t.categoryId || "other";
+      const category = EXPENSE_CATEGORIES.find((c: CategoryConstant) => c.id === categoryId);
+      if (!category) return acc;
+      
+      if (!acc[category.id]) {
+        acc[category.id] = {
+          name: category.name,
+          amount: 0,
+          color: category.color,
+          icon: category.icon,
+        };
+      }
+      acc[category.id].amount += t.amount;
+      return acc;
+    }, {} as Record<string, { name: string; amount: number; color: string; icon: string }>);
 
-export function ExpensesByCategory({ isLoading = false }: ExpensesByCategoryProps) {
-  const { data: transactions, isLoading: isLoadingTransactions } = useFetchTransactions({
-    type: "EXPENSE",
-  });
-
-  const categoryData = useMemo(() => {
-    if (!transactions || transactions.length === 0) {
-      return {
-        grouped: {},
-        total: 0,
-      };
-    }
-
-    const grouped = groupTransactionsByCategory(transactions);
-    const total = transactions.reduce((sum, t) => sum + t.amount, 0);
-
-    return {
-      grouped,
-      total,
-    };
-  }, [transactions]);
-
-  const chartData = useMemo(() => {
-    const categories = Object.values(categoryData.grouped);
-    
-    return {
-      labels: categories.map((c) => c.category.name),
-      datasets: [
-        {
-          data: categories.map((c) => c.total),
-          backgroundColor: categories.map((c) => c.category.color || "#ccc"),
-          borderColor: "hsl(var(--background))",
-          borderWidth: 2,
-        },
-      ],
-    };
-  }, [categoryData]);
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "right" as const,
-        labels: {
-          usePointStyle: true,
-          boxWidth: 10,
-          boxHeight: 10,
-          padding: 15,
-          font: {
-            size: 12,
-          },
-        },
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context: any) {
-            const value = context.raw;
-            const percentage = ((value / categoryData.total) * 100).toFixed(1);
-            return `${context.label}: ${formatCurrency(value)} (${percentage}%)`;
-          },
-        },
-      },
-    },
-    cutout: "65%",
-  };
-
-  const isDataLoading = isLoading || isLoadingTransactions;
+  const totalExpenses = Object.values(expensesByCategory).reduce(
+    (sum, item) => sum + item.amount,
+    0
+  );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Expenses by Category</CardTitle>
-        <CardDescription>
-          How you have spent your money
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isDataLoading ? (
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="w-32 h-32 rounded-full animate-pulse bg-muted"></div>
-          </div>
-        ) : !transactions.length ? (
-          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-            No expense data available
-          </div>
-        ) : (
-          <div className="h-[300px] relative">
-            <Doughnut data={chartData} options={chartOptions} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-3xl font-bold">
-                {formatCurrency(categoryData.total)}
-              </span>
-              <span className="text-sm text-muted-foreground">Total Expenses</span>
+    <div className="bg-card p-6 rounded-lg shadow">
+      <h2 className="text-lg font-semibold mb-4">Despesas por Categoria</h2>
+      <div className="space-y-4">
+        {Object.entries(expensesByCategory).map(([categoryId, { name, amount, color, icon }]) => {
+          const percentage = ((amount / totalExpenses) * 100).toFixed(1);
+          const Icon = ICONS[icon as keyof typeof ICONS];
+          return (
+            <div key={categoryId} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" style={{ color }} />
+                  <span className="text-sm font-medium">{name}</span>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {formatCurrency(amount)} ({percentage}%)
+                </span>
+              </div>
+              <div className="h-2 bg-muted rounded-full">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${percentage}%`, backgroundColor: color }}
+                />
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 } 

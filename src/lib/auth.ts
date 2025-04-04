@@ -4,20 +4,40 @@ import { Adapter } from "next-auth/adapters";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
-import bcrypt from "bcryptjs";
+import { compare } from "bcryptjs";
 
 import { prisma } from "@/lib/prisma";
+
+// Adicionando tipos personalizados para o NextAuth
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    }
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
     signIn: "/login",
     error: "/login",
   },
+  debug: process.env.NODE_ENV === "development",
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -37,23 +57,22 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user || !user.password) {
-          throw new Error("User not found");
+          throw new Error("Invalid credentials");
         }
 
-        const isPasswordValid = await bcrypt.compare(
+        const isPasswordValid = await compare(
           credentials.password,
           user.password
         );
 
         if (!isPasswordValid) {
-          throw new Error("Invalid password");
+          throw new Error("Invalid credentials");
         }
 
         return {
           id: user.id,
-          name: user.name,
           email: user.email,
-          image: user.image,
+          name: user.name,
         };
       },
     }),
@@ -69,15 +88,29 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
+        return {
+          ...token,
+          id: user.id,
+        };
       }
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-      }
-      return session;
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: token.id,
+        },
+      };
+    },
+  },
+  events: {
+    async signIn({ user, account }) {
+      console.log("[Auth] SignIn Event - User:", user.id, "Account:", account?.type);
+    },
+    async signOut({ token }) {
+      console.log("[Auth] SignOut Event - Token:", token.id);
     },
   },
 }; 

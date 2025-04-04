@@ -1,78 +1,60 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { z } from "zod";
-
+import { hash } from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-
-const userSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(8),
-});
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    
-    const validation = userSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { error: validation.error.errors[0].message },
-        { status: 400 }
-      );
+    const { name, email, password } = body;
+
+    if (!name || !email || !password) {
+      return new NextResponse("Missing required fields", { status: 400 });
     }
 
-    const { name, email, password } = validation.data;
+    if (password.length < 8) {
+      return new NextResponse("Password must be at least 8 characters", { status: 400 });
+    }
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: "Email already in use" },
-        { status: 400 }
-      );
+      return new NextResponse("Email already in use", { status: 400 });
     }
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hash(password, 12);
 
-    // Create the user
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
-        settings: {
-          create: {
-            theme: "light",
-            currency: "USD",
-            notificationsEnabled: true,
-          },
+        categories: {
+          create: [
+            ...EXPENSE_CATEGORIES.map(cat => ({
+              name: cat.name,
+              color: cat.color,
+              icon: cat.icon,
+            })),
+            ...INCOME_CATEGORIES.map(cat => ({
+              name: cat.name,
+              color: cat.color,
+              icon: cat.icon,
+            })),
+          ],
         },
       },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
+      include: {
+        categories: true,
       },
     });
 
-    return NextResponse.json(
-      {
-        user,
-        message: "User registered successfully",
-      },
-      { status: 201 }
-    );
+    const { password: _, ...userWithoutPassword } = user;
+    return NextResponse.json(userWithoutPassword);
   } catch (error) {
-    console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "Something went wrong" },
-      { status: 500 }
-    );
+    console.error("[REGISTER_POST]", error);
+    return new NextResponse("Internal error", { status: 500 });
   }
 } 

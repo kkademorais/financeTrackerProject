@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -11,39 +10,39 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/atoms/ui/button";
 import { Input } from "@/components/atoms/ui/input";
-import { Label } from "@/components/atoms/ui/label";
 import { useToast } from "@/components/atoms/ui/use-toast";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/atoms/ui/card";
+import { BrainMoney } from "@/components/atoms/icons/brain-money";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/atoms/ui/form";
 
-const registerSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
-  email: z.string().email({ message: "Invalid email address" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+const formSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório"),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(8, "A senha deve ter pelo menos 8 caracteres"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
+  message: "As senhas não coincidem",
   path: ["confirmPassword"],
 });
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
   });
 
-  const onSubmit = async (data: RegisterFormValues) => {
-    setIsLoading(true);
-    
+  async function onSubmit(data: z.infer<typeof formSchema>) {
     try {
+      setIsLoading(true);
+
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
@@ -56,114 +55,143 @@ export default function RegisterPage() {
         }),
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        const { error } = await response.json();
-        throw new Error(error || "Failed to register");
+        console.error("[Register] Registration failed:", responseData.error);
+        toast({
+          variant: "destructive",
+          title: "Erro no Registro",
+          description: responseData.error === "Email already in use"
+            ? "Este email já está em uso. Tente fazer login ou use outro email."
+            : responseData.error === "Password must be at least 8 characters"
+            ? "A senha deve ter pelo menos 8 caracteres."
+            : "Ocorreu um erro durante o registro. Tente novamente.",
+          duration: 5000,
+        });
+        return;
       }
 
+      console.log("[Register] Registration successful for:", data.email);
+      
       toast({
-        title: "Account created",
-        description: "You can now log in with your credentials",
+        title: "Conta criada com sucesso! 🎉",
+        description: "Suas categorias padrão foram configuradas. Você será redirecionado para fazer login.",
+        duration: 5000,
       });
 
-      // Automatically sign in the user
-      await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        callbackUrl: "/",
-      });
-    } catch (error: any) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      router.push("/login");
+    } catch (error) {
+      console.error("[Register] Error:", error);
       toast({
         variant: "destructive",
-        title: "Registration failed",
-        description: error.message || "Something went wrong",
+        title: "Erro no Registro",
+        description: "Ocorreu um erro durante o registro. Tente novamente.",
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-          <CardDescription>Enter your information to create an account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                placeholder="John Doe"
-                disabled={isLoading}
-                {...register("name")}
+    <div className="container relative h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+      <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
+        <div className="absolute inset-0 bg-zinc-900" />
+        <div className="relative z-20 flex items-center text-lg font-medium">
+          <BrainMoney className="mr-2 h-6 w-6" />
+          BudgetBrain
+        </div>
+        <div className="relative z-20 mt-auto">
+          <blockquote className="space-y-2">
+            <p className="text-lg">
+              "O BudgetBrain transformou completamente minha forma de gerenciar minhas finanças. Agora tenho total controle sobre meus gastos e receitas."
+            </p>
+            <footer className="text-sm">Sofia Oliveira</footer>
+          </blockquote>
+        </div>
+      </div>
+      <div className="lg:p-8">
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+          <div className="flex flex-col space-y-2 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Criar uma conta
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Preencha os campos abaixo para criar sua conta
+            </p>
+          </div>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {errors.name && (
-                <p className="text-sm text-red-500">{errors.name.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="email@example.com"
-                disabled={isLoading}
-                {...register("email")}
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="john@example.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {errors.email && (
-                <p className="text-sm text-red-500">{errors.email.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="********"
-                disabled={isLoading}
-                {...register("password")}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Senha</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {errors.password && (
-                <p className="text-sm text-red-500">{errors.password.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="********"
-                disabled={isLoading}
-                {...register("confirmPassword")}
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar Senha</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {errors.confirmPassword && (
-                <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
-              )}
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                "Create account"
-              )}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              Log in
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Registrando..." : "Registrar"}
+              </Button>
+            </form>
+          </Form>
+          <p className="px-8 text-center text-sm text-muted-foreground">
+            Já tem uma conta?{" "}
+            <Link
+              href="/login"
+              className="underline underline-offset-4 hover:text-primary"
+            >
+              Fazer login
             </Link>
           </p>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 } 

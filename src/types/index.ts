@@ -1,13 +1,29 @@
 export type TransactionType = "INCOME" | "EXPENSE";
 
+export type IconType = 
+  | "Utensils"
+  | "Car"
+  | "Gamepad2"
+  | "Lightbulb"
+  | "Home"
+  | "Shirt"
+  | "Heart"
+  | "GraduationCap"
+  | "ShoppingBag"
+  | "CircleDollarSign"
+  | "Briefcase"
+  | "Laptop"
+  | "TrendingUp"
+  | "Gift"
+  | "HelpCircle";
+
 export interface Transaction {
   id: string;
   amount: number;
   description: string;
   date: Date | string;
   type: TransactionType;
-  categoryId?: string;
-  category?: Category;
+  categoryId: string;
   userId: string;
   createdAt: Date | string;
   updatedAt: Date | string;
@@ -16,8 +32,8 @@ export interface Transaction {
 export interface Category {
   id: string;
   name: string;
-  color?: string;
-  icon?: string;
+  color: string;
+  icon: IconType;
   userId: string;
   transactions?: Transaction[];
   createdAt: Date | string;

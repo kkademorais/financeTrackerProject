@@ -3,177 +3,179 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { ArrowDown, ArrowUp, CalendarIcon, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
+import { z } from "zod";
+import { format } from "date-fns";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/atoms/ui/card";
 import { Button } from "@/components/atoms/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/atoms/ui/card";
 import { Input } from "@/components/atoms/ui/input";
 import { Label } from "@/components/atoms/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/atoms/ui/radio-group";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/ui/popover";
-import { Calendar } from "@/components/atoms/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/atoms/ui/select";
-import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { useTransactions } from "@/contexts/transactions-context";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/atoms/ui/select";
+import { Calendar } from "@/components/atoms/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/ui/popover";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
+import { TransactionType } from "@/types";
 
 const transactionSchema = z.object({
-  amount: z.coerce.number().positive({ message: "Amount must be positive" }),
-  description: z.string().min(2, { message: "Description must be at least 2 characters" }),
-  type: z.enum(["INCOME", "EXPENSE"], { required_error: "Type is required" }),
-  date: z.date({ required_error: "Date is required" }),
-  categoryId: z.string().optional(),
+  amount: z.number().min(0.01, "Amount must be greater than 0"),
+  description: z.string().min(1, "Description is required"),
+  type: z.enum(["INCOME", "EXPENSE"]),
+  categoryId: z.string().min(1, "Category is required"),
+  date: z.date(),
 });
 
-type TransactionFormValues = z.infer<typeof transactionSchema>;
+type TransactionFormData = z.infer<typeof transactionSchema>;
 
 interface QuickAddTransactionProps {
   onTransactionAdded?: () => void;
+  className?: string;
 }
 
-// Dados de categorias mockados (em um app real, viriam da API)
-const mockCategories = [
-  { id: "food", name: "Food", color: "#4CAF50" },
-  { id: "transport", name: "Transportation", color: "#2196F3" },
-  { id: "entertainment", name: "Entertainment", color: "#E91E63" },
-  { id: "utilities", name: "Utilities", color: "#673AB7" },
-  { id: "home", name: "Housing", color: "#FF5722" },
-  { id: "personal", name: "Personal", color: "#9C27B0" },
-  { id: "health", name: "Health", color: "#00BCD4" },
-  { id: "other", name: "Other", color: "#607D8B" },
-];
-
-export function QuickAddTransaction({ onTransactionAdded }: QuickAddTransactionProps) {
+export function QuickAddTransaction({ onTransactionAdded, className }: QuickAddTransactionProps) {
+  const { toast } = useToast();
+  const { addTransaction } = useTransactions();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [date, setDate] = useState<Date>(new Date());
 
   const {
     register,
     handleSubmit,
-    control,
     reset,
-    watch,
     setValue,
+    watch,
     formState: { errors },
-  } = useForm<TransactionFormValues>({
+  } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      amount: undefined,
-      description: "",
       type: "EXPENSE",
-      date: new Date(),
       categoryId: "",
+      date: new Date(),
     },
   });
 
   const transactionType = watch("type");
-  const selectedDate = watch("date");
+  const categories = transactionType === "INCOME" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
-  const onSubmit = async (data: TransactionFormValues) => {
+  const onSubmit = async (data: TransactionFormData) => {
     setIsSubmitting(true);
-
     try {
-      // Simulando uma requisição à API
-      console.log("Transaction data:", data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Limpar formulário após sucesso
-      reset({
-        amount: undefined,
-        description: "",
-        type: "EXPENSE",
-        date: new Date(),
-        categoryId: "",
+      await addTransaction({
+        ...data,
+        date: new Date(data.date),
+      });
+      
+      toast({
+        title: "Transaction added!",
+        description: "Your transaction has been successfully added.",
       });
 
-      // Notificar componente pai para atualizar dados
-      if (onTransactionAdded) {
-        onTransactionAdded();
-      }
+      reset();
+      onTransactionAdded?.();
     } catch (error) {
-      console.error("Error adding transaction:", error);
+      toast({
+        title: "Error",
+        description: "There was an error adding your transaction.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Card>
+    <Card className={cn(className)}>
       <CardHeader>
-        <CardTitle>Add Transaction</CardTitle>
-        <CardDescription>Record your income or expense</CardDescription>
+        <CardTitle>Quick Add Transaction</CardTitle>
+        <CardDescription>Add a new income or expense quickly</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <RadioGroup
-              defaultValue="EXPENSE"
-              className="flex"
-              onValueChange={(value) => setValue("type", value as "INCOME" | "EXPENSE")}
-              value={transactionType}
-            >
-              <div className="flex items-center space-x-2 mr-4">
-                <RadioGroupItem value="EXPENSE" id="expense" className="sr-only" />
-                <Label
-                  htmlFor="expense"
-                  className={cn(
-                    "flex items-center rounded-md px-3 py-2 text-sm border cursor-pointer",
-                    transactionType === "EXPENSE"
-                      ? "bg-red-100 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300"
-                      : "hover:bg-muted"
-                  )}
-                >
-                  <ArrowDown className="mr-2 h-4 w-4" /> Expense
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="INCOME" id="income" className="sr-only" />
-                <Label
-                  htmlFor="income"
-                  className={cn(
-                    "flex items-center rounded-md px-3 py-2 text-sm border cursor-pointer",
-                    transactionType === "INCOME"
-                      ? "bg-green-100 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300"
-                      : "hover:bg-muted"
-                  )}
-                >
-                  <ArrowUp className="mr-2 h-4 w-4" /> Income
-                </Label>
-              </div>
-            </RadioGroup>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount</Label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
               <Input
                 id="amount"
-                placeholder="0.00"
-                className="pl-7"
-                {...register("amount")}
+                type="number"
+                step="0.01"
+                {...register("amount", { valueAsNumber: true })}
               />
+              {errors.amount && (
+                <p className="text-sm text-red-500">{errors.amount.message}</p>
+              )}
             </div>
-            {errors.amount && (
-              <p className="text-sm text-destructive">{errors.amount.message}</p>
-            )}
+
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={(newDate) => {
+                      setDate(newDate || new Date());
+                      setValue("date", newDate || new Date());
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Input
               id="description"
-              placeholder="What was this for?"
               {...register("description")}
             />
             {errors.description && (
-              <p className="text-sm text-destructive">{errors.description.message}</p>
+              <p className="text-sm text-red-500">{errors.description.message}</p>
             )}
           </div>
 
-          {transactionType === "EXPENSE" && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <RadioGroup
+                value={transactionType}
+                onValueChange={(value) => {
+                  setValue("type", value as TransactionType);
+                  setValue("categoryId", ""); // Reset category when type changes
+                }}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="EXPENSE" id="expense" />
+                  <Label htmlFor="expense">Expense</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="INCOME" id="income" />
+                  <Label htmlFor="income">Income</Label>
+                </div>
+              </RadioGroup>
+              {errors.type && (
+                <p className="text-sm text-red-500">{errors.type.message}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select 
+              <Select
                 onValueChange={(value) => setValue("categoryId", value)}
                 defaultValue=""
               >
@@ -181,11 +183,11 @@ export function QuickAddTransaction({ onTransactionAdded }: QuickAddTransactionP
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id} className="flex items-center">
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
                       <div className="flex items-center">
-                        <div 
-                          className="w-3 h-3 rounded-full mr-2" 
+                        <div
+                          className="w-3 h-3 rounded-full mr-2"
                           style={{ backgroundColor: category.color }}
                         />
                         {category.name}
@@ -194,46 +196,15 @@ export function QuickAddTransaction({ onTransactionAdded }: QuickAddTransactionP
                   ))}
                 </SelectContent>
               </Select>
+              {errors.categoryId && (
+                <p className="text-sm text-red-500">{errors.categoryId.message}</p>
+              )}
             </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "PPP") : "Select a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setValue("date", date)}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            {errors.date && (
-              <p className="text-sm text-destructive">{errors.date.message}</p>
-            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
-              </>
-            ) : (
-              "Add Transaction"
-            )}
+            <Plus className="mr-2 h-4 w-4" />
+            {isSubmitting ? "Adding..." : "Add Transaction"}
           </Button>
         </form>
       </CardContent>

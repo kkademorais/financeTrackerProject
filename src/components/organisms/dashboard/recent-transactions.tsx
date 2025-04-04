@@ -1,99 +1,122 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowRight } from "lucide-react";
-
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/atoms/ui/card";
+import { useTransactions } from "@/contexts/transactions-context";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { useFetchTransactions } from "@/hooks/use-fetch-transactions";
-import { Transaction } from "@/types";
+import { TransactionType } from "@/types";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CategoryConstant } from "@/lib/constants";
+import {
+  Utensils,
+  Car,
+  Gamepad2,
+  Lightbulb,
+  Home,
+  Shirt,
+  Heart,
+  GraduationCap,
+  ShoppingBag,
+  CircleDollarSign,
+  Briefcase,
+  Laptop,
+  TrendingUp,
+  Gift,
+  HelpCircle,
+} from "lucide-react";
 
-interface RecentTransactionsProps {
-  isLoading?: boolean;
-  limit?: number;
-}
+const ICONS = {
+  Utensils,
+  Car,
+  Gamepad2,
+  Lightbulb,
+  Home,
+  Shirt,
+  Heart,
+  GraduationCap,
+  ShoppingBag,
+  CircleDollarSign,
+  Briefcase,
+  Laptop,
+  TrendingUp,
+  Gift,
+  HelpCircle,
+};
 
-export function RecentTransactions({ isLoading = false, limit = 5 }: RecentTransactionsProps) {
-  const { data: transactions, isLoading: isLoadingTransactions } = useFetchTransactions({
-    limit,
-  });
+export function RecentTransactions() {
+  const { transactions, isLoading } = useTransactions();
 
-  const isDataLoading = isLoading || isLoadingTransactions;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Transactions</CardTitle>
-        <CardDescription>Your latest financial activities</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isDataLoading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between py-3 border-b last:border-0 animate-pulse"
-            >
-              <div className="flex flex-col gap-1">
-                <div className="h-4 w-40 bg-muted rounded"></div>
-                <div className="h-3 w-20 bg-muted rounded"></div>
-              </div>
-              <div className="h-5 w-16 bg-muted rounded"></div>
-            </div>
-          ))
-        ) : transactions.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No transactions found.
-          </div>
-        ) : (
-          <>
-            {transactions.map((transaction) => (
-              <TransactionItem key={transaction.id} transaction={transaction} />
-            ))}
-          </>
-        )}
-      </CardContent>
-      <CardFooter>
-        <Link
-          href="/transactions"
-          className="flex items-center text-sm text-primary hover:underline"
-        >
-          View all transactions
-          <ArrowRight className="ml-1 h-4 w-4" />
-        </Link>
-      </CardFooter>
-    </Card>
-  );
-}
-
-function TransactionItem({ transaction }: { transaction: Transaction }) {
-  const isIncome = transaction.type === "INCOME";
-  const formattedDate = formatDate(transaction.date, { month: "short", day: "numeric" });
-
-  return (
-    <div className="flex items-center justify-between py-3 border-b last:border-0">
-      <div className="flex gap-3 items-center">
-        <div
-          className={`flex items-center justify-center w-8 h-8 rounded-full ${
-            isIncome
-              ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-              : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-          }`}
-        >
-          {isIncome ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
-        </div>
-        <div>
-          <p className="text-sm font-medium">{transaction.description}</p>
-          <p className="text-xs text-muted-foreground">
-            {formattedDate} • {transaction.category?.name || (isIncome ? "Income" : "Expense")}
-          </p>
-        </div>
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
-      <div
-        className={`text-sm font-medium ${
-          isIncome ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-        }`}
-      >
-        {isIncome ? "+" : "-"}{formatCurrency(transaction.amount)}
+    );
+  }
+
+  if (transactions.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Nenhuma transação encontrada.</p>
+      </div>
+    );
+  }
+
+  const recentTransactions = transactions.slice(0, 5);
+
+  return (
+    <div className="bg-card rounded-lg shadow">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b">
+              <th className="text-left py-4 px-6">Data</th>
+              <th className="text-left py-4 px-6">Descrição</th>
+              <th className="text-left py-4 px-6">Categoria</th>
+              <th className="text-left py-4 px-6">Tipo</th>
+              <th className="text-right py-4 px-6">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentTransactions.map((transaction) => {
+              const category = transaction.type === "INCOME"
+                ? INCOME_CATEGORIES.find((c: CategoryConstant) => c.id === transaction.categoryId)
+                : EXPENSE_CATEGORIES.find((c: CategoryConstant) => c.id === transaction.categoryId);
+
+              const Icon = category ? ICONS[category.icon as keyof typeof ICONS] : HelpCircle;
+
+              return (
+                <tr key={transaction.id} className="border-b">
+                  <td className="py-4 px-6">{formatDate(transaction.date)}</td>
+                  <td className="py-4 px-6">{transaction.description}</td>
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4" style={{ color: category?.color }} />
+                      <span>{category?.name || "Outros"}</span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        transaction.type === "INCOME"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {transaction.type === "INCOME" ? "Receita" : "Despesa"}
+                    </span>
+                  </td>
+                  <td
+                    className={`py-4 px-6 text-right ${
+                      transaction.type === "INCOME"
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {formatCurrency(transaction.amount)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

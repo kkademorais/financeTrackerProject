@@ -1,149 +1,123 @@
 "use client";
 
-import { useMemo } from "react";
-import { Bar } from "react-chartjs-2";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/atoms/ui/card";
+import { useTransactions } from "@/contexts/transactions-context";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
+import { TransactionType } from "@/types";
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
+  Utensils,
+  Car,
+  Gamepad2,
+  Lightbulb,
+  Home,
+  Shirt,
+  Heart,
+  GraduationCap,
+  ShoppingBag,
+  CircleDollarSign,
+  Briefcase,
+  Laptop,
+  TrendingUp,
+  Gift,
+  HelpCircle,
+} from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/atoms/ui/card";
-import { useFetchTransactions } from "@/hooks/use-fetch-transactions";
-import { calculateMonthlyTotals, formatCurrency } from "@/lib/utils";
+const ICONS = {
+  Utensils,
+  Car,
+  Gamepad2,
+  Lightbulb,
+  Home,
+  Shirt,
+  Heart,
+  GraduationCap,
+  ShoppingBag,
+  CircleDollarSign,
+  Briefcase,
+  Laptop,
+  TrendingUp,
+  Gift,
+  HelpCircle,
+};
 
-// Registrar os componentes do Chart.js
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-lg border bg-background p-4 shadow-lg">
+        <p className="mb-2 font-semibold">{label}</p>
+        {payload.map((entry: any, index: number) => {
+          const isIncome = entry.name === "Income";
+          const Icon = isIncome ? ICONS[INCOME_CATEGORIES[0].icon as keyof typeof ICONS] : ICONS[EXPENSE_CATEGORIES[0].icon as keyof typeof ICONS];
+          
+          return (
+            <div key={index} className="flex items-center justify-between gap-8">
+              <div className="flex items-center gap-2">
+                <div style={{ color: entry.color }}>
+                  <Icon size={16} />
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  {entry.name}
+                </span>
+              </div>
+              <span className="font-medium" style={{ color: entry.color }}>
+                ${entry.value.toFixed(2)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  return null;
+};
 
-interface MonthlyOverviewProps {
-  isLoading?: boolean;
-  months?: number;
-}
+export function MonthlyOverview() {
+  const { transactions } = useTransactions();
 
-export function MonthlyOverview({ isLoading = false, months = 6 }: MonthlyOverviewProps) {
-  const { data: transactions, isLoading: isLoadingTransactions } = useFetchTransactions();
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
 
-  const monthlyData = useMemo(() => {
-    if (!transactions || transactions.length === 0) {
-      return [];
-    }
+  const monthlyTransactions = transactions.filter((t) => {
+    const date = new Date(t.date);
+    return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+  });
 
-    return calculateMonthlyTotals(transactions, months);
-  }, [transactions, months]);
+  const totalIncome = monthlyTransactions
+    .filter((t) => t.type === "INCOME")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-  const chartData = useMemo(() => {
-    if (!monthlyData.length) {
-      return {
-        labels: [],
-        datasets: [],
-      };
-    }
+  const totalExpenses = monthlyTransactions
+    .filter((t) => t.type === "EXPENSE")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-    return {
-      labels: monthlyData.map((d) => d.month),
-      datasets: [
-        {
-          label: "Income",
-          data: monthlyData.map((d) => d.income),
-          backgroundColor: "rgba(34, 197, 94, 0.6)",
-          borderColor: "rgb(34, 197, 94)",
-          borderWidth: 1,
-        },
-        {
-          label: "Expenses",
-          data: monthlyData.map((d) => d.expense),
-          backgroundColor: "rgba(239, 68, 68, 0.6)",
-          borderColor: "rgb(239, 68, 68)",
-          borderWidth: 1,
-        },
-        {
-          label: "Balance",
-          data: monthlyData.map((d) => d.balance),
-          backgroundColor: "rgba(59, 130, 246, 0.6)",
-          borderColor: "rgb(59, 130, 246)",
-          borderWidth: 1,
-        },
-      ],
-    };
-  }, [monthlyData]);
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: "top" as const,
-        labels: {
-          boxWidth: 10,
-          boxHeight: 10,
-          padding: 15,
-          font: {
-            size: 12,
-          },
-        },
-      },
-      tooltip: {
-        callbacks: {
-          label: function (context: any) {
-            return `${context.dataset.label}: ${formatCurrency(context.raw)}`;
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        grid: {
-          display: false,
-        },
-      },
-      y: {
-        beginAtZero: true,
-        ticks: {
-          callback: function (value: number) {
-            return formatCurrency(value, "USD", "en-US", { 
-              notation: "compact",
-              compactDisplay: "short",
-            });
-          },
-        },
-      },
-    },
-  };
-
-  const isDataLoading = isLoading || isLoadingTransactions;
+  const balance = totalIncome - totalExpenses;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Monthly Overview</CardTitle>
-        <CardDescription>Your income and expenses for the last {months} months</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isDataLoading ? (
-          <div className="h-[300px] animate-pulse flex items-center justify-center">
-            <div className="w-full h-48 bg-muted rounded"></div>
-          </div>
-        ) : !monthlyData.length ? (
-          <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-            No data available for the selected period
-          </div>
-        ) : (
-          <div className="h-[300px]">
-            <Bar data={chartData} options={chartOptions} />
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="bg-card p-6 rounded-lg shadow">
+        <h2 className="text-lg font-semibold mb-2">Receitas do Mês</h2>
+        <p className="text-2xl font-bold text-green-600">
+          {formatCurrency(totalIncome)}
+        </p>
+      </div>
+      <div className="bg-card p-6 rounded-lg shadow">
+        <h2 className="text-lg font-semibold mb-2">Despesas do Mês</h2>
+        <p className="text-2xl font-bold text-red-600">
+          {formatCurrency(totalExpenses)}
+        </p>
+      </div>
+      <div className="bg-card p-6 rounded-lg shadow">
+        <h2 className="text-lg font-semibold mb-2">Saldo do Mês</h2>
+        <p
+          className={`text-2xl font-bold ${
+            balance >= 0 ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {formatCurrency(balance)}
+        </p>
+      </div>
+    </div>
   );
 } 

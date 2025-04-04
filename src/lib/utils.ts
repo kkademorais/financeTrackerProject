@@ -7,8 +7,8 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(
   amount: number,
-  currency: string = "USD",
-  locale: string = "en-US"
+  currency: string = "BRL",
+  locale: string = "pt-BR"
 ): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
@@ -19,11 +19,11 @@ export function formatCurrency(
 export function formatDate(
   date: Date | string,
   options: Intl.DateTimeFormatOptions = {
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
-    month: "short",
-    day: "numeric",
   },
-  locale: string = "en-US"
+  locale: string = "pt-BR"
 ): string {
   const dateToFormat = typeof date === "string" ? new Date(date) : date;
   return new Intl.DateTimeFormat(locale, options).format(dateToFormat);
@@ -32,7 +32,7 @@ export function formatDate(
 export function calculateTotalsByType(transactions: any[]) {
   return transactions.reduce(
     (acc, transaction) => {
-      if (transaction.type === "INCOME") {
+      if (transaction.type === "income") {
         acc.income += transaction.amount;
       } else {
         acc.expense += transaction.amount;
@@ -61,16 +61,15 @@ export function groupTransactionsByDate(transactions: any[]) {
 
 export function groupTransactionsByCategory(transactions: any[]) {
   return transactions.reduce((grouped, transaction) => {
-    const categoryId = transaction.categoryId || "uncategorized";
-    if (!grouped[categoryId]) {
-      grouped[categoryId] = {
+    const category = transaction.category || "uncategorized";
+    if (!grouped[category]) {
+      grouped[category] = {
         total: 0,
         transactions: [],
-        category: transaction.category || { id: "uncategorized", name: "Uncategorized" },
       };
     }
-    grouped[categoryId].total += transaction.amount;
-    grouped[categoryId].transactions.push(transaction);
+    grouped[category].total += transaction.amount;
+    grouped[category].transactions.push(transaction);
     return grouped;
   }, {});
 }
