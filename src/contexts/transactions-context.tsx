@@ -22,11 +22,26 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   const fetchTransactions = async () => {
     try {
-      const response = await fetch("/api/transactions");
+      console.log("Fetching transactions...");
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      const response = await fetch(`${baseUrl}/api/transactions`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("Response status:", response.status);
+      
       if (!response.ok) {
-        throw new Error("Failed to fetch transactions");
+        const errorData = await response.text();
+        console.error("Error response:", errorData);
+        throw new Error(`Failed to fetch transactions: ${response.status} ${errorData}`);
       }
+
       const data = await response.json();
+      console.log("Fetched transactions:", data);
+
       setTransactions(data.map((t: any) => ({
         ...t,
         date: new Date(t.date),
@@ -53,7 +68,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   const addTransaction = async (transaction: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => {
     try {
-      const response = await fetch("/api/transactions", {
+      console.log("Adding transaction:", transaction);
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      const response = await fetch(`${baseUrl}/api/transactions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -61,17 +78,24 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(transaction),
       });
 
+      console.log("Response status:", response.status);
+
       if (!response.ok) {
-        throw new Error("Failed to add transaction");
+        const errorData = await response.text();
+        console.error("Error response:", errorData);
+        throw new Error(`Failed to add transaction: ${response.status} ${errorData}`);
       }
 
       const newTransaction = await response.json();
+      console.log("New transaction:", newTransaction);
+
       setTransactions((prev) => [...prev, {
         ...newTransaction,
         date: new Date(newTransaction.date),
         createdAt: new Date(newTransaction.createdAt),
         updatedAt: new Date(newTransaction.updatedAt)
       }]);
+
       toast({
         title: "Transação adicionada com sucesso!",
         description: "Sua transação foi registrada com sucesso.",
