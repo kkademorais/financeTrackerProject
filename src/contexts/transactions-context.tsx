@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/atoms/ui/use-toast";
 import { Transaction, TransactionType } from "@/types";
+import { api } from "@/lib/api";
 
 interface TransactionsContextType {
   transactions: Transaction[];
@@ -23,25 +24,8 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   const fetchTransactions = async () => {
     try {
       console.log("[TransactionsProvider] Fetching transactions...");
-      const response = await fetch('/api/transactions', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[TransactionsProvider] Error response:", {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        });
-        throw new Error(`Failed to fetch transactions: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
+      
+      const data = await api.getTransactions();
       console.log("[TransactionsProvider] Transactions fetched:", data);
 
       setTransactions(data.map((t: any) => ({
@@ -71,26 +55,8 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
   const addTransaction = async (transaction: Omit<Transaction, "id" | "userId" | "createdAt" | "updatedAt">) => {
     try {
       console.log("[TransactionsProvider] Adding transaction:", transaction);
-      const response = await fetch('/api/transactions', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(transaction),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[TransactionsProvider] Error response:", {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        });
-        throw new Error(`Failed to add transaction: ${response.status} ${errorText}`);
-      }
-
-      const newTransaction = await response.json();
+      
+      const newTransaction = await api.addTransaction(transaction);
       console.log("[TransactionsProvider] Transaction added:", newTransaction);
 
       setTransactions((prev) => [...prev, {

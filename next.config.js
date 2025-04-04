@@ -17,31 +17,31 @@ const nextConfig = {
   },
   // Configuração de ambiente
   env: {
-    NEXTAUTH_URL: process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   },
   // Configuração de headers
   async headers() {
     return [
       {
-        source: '/api/:path*',
+        // Aplica os headers para todas as rotas de API
+        source: "/api/:path*",
         headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+          { key: "Access-Control-Allow-Credentials", value: "true" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET,POST,PUT,DELETE,OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization" },
         ],
-      }
+      },
     ];
   },
   // Configuração de rotas
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: '/api/:path*',
-      }
+        source: "/api/:path*",
+        destination: "/api/:path*",
+      },
     ];
   },
   // Configuração de redirecionamentos

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useToast } from "@/hooks/use-toast";
 import { Category } from "@/types";
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
+import { api } from "@/lib/api";
 
 export interface UseCategoriesReturn {
   categories: Category[];
@@ -37,26 +38,44 @@ export function useCategories(): UseCategoriesReturn {
         return;
       }
       
-      const response = await fetch("/api/categories");
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("[useCategories] Erro ao buscar categorias:", response.status, errorData);
-        throw new Error(`Failed to fetch categories: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log("[useCategories] Categorias recebidas do servidor:", data);
-      
-      if (!Array.isArray(data) || data.length === 0) {
-        console.log("[useCategories] Nenhuma categoria recebida, usando categorias padrão");
+      try {
+        const data = await api.getCategories();
+        console.log("[useCategories] Categorias recebidas do servidor:", data);
+        
+        if (!Array.isArray(data) || data.length === 0) {
+          console.log("[useCategories] Nenhuma categoria recebida, tentando criar categorias padrão");
+          await api.seedCategories();
+          
+          // Busca novamente após criar as categorias
+          const refreshedData = await api.getCategories();
+          console.log("[useCategories] Categorias após seed:", refreshedData);
+          
+          if (!Array.isArray(refreshedData) || refreshedData.length === 0) {
+            console.log("[useCategories] Ainda não há categorias, usando categorias padrão");
+            const defaultCategories = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map(cat => ({
+              ...cat,
+              transactions: [],
+            }));
+            setCategories(defaultCategories);
+          } else {
+            setCategories(refreshedData);
+          }
+        } else {
+          setCategories(data);
+        }
+      } catch (error) {
+        console.error("[useCategories] Erro ao buscar categorias:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar categorias",
+          description: "Não foi possível carregar suas categorias. Tente novamente mais tarde.",
+        });
+        // Em caso de erro, use as categorias padrão
         const defaultCategories = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].map(cat => ({
           ...cat,
           transactions: [],
         }));
         setCategories(defaultCategories);
-      } else {
-        setCategories(data);
       }
     } catch (error) {
       console.error("[useCategories] Erro ao buscar categorias:", error);

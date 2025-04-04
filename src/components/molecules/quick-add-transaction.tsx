@@ -29,20 +29,35 @@ export function QuickAddTransaction({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!categoryId) {
+      console.error("[QuickAddTransaction] Nenhuma categoria selecionada");
+      return;
+    }
+    
     const selectedCategory = type === "INCOME" 
       ? incomeCategories.find(c => c.id === categoryId)
       : expenseCategories.find(c => c.id === categoryId);
 
     if (!selectedCategory) {
+      console.error("[QuickAddTransaction] Categoria não encontrada:", {
+        categoryId,
+        type,
+        availableCategories: type === "INCOME" ? incomeCategories : expenseCategories
+      });
       return;
     }
+
+    console.log("[QuickAddTransaction] Adicionando transação com categoria:", {
+      categoryId: selectedCategory.id,
+      categoryName: selectedCategory.name
+    });
 
     await onAddTransaction({
       description,
       amount: Number(amount),
       type,
-      categoryId,
-      category: selectedCategory as Category,
+      categoryId: selectedCategory.id,
       date: new Date(date),
     });
 
@@ -69,6 +84,7 @@ export function QuickAddTransaction({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder="Ex: Salário, Aluguel, etc."
               required
             />
           </div>
@@ -77,23 +93,22 @@ export function QuickAddTransaction({
             <Input
               id="amount"
               type="number"
+              step="0.01"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
               required
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="type">Tipo</Label>
-            <Select value={type} onValueChange={(value: TransactionType) => {
-              setType(value);
-              setCategoryId("");
-            }}>
+            <Select value={type} onValueChange={(value) => setType(value as TransactionType)}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o tipo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="INCOME">Receita</SelectItem>
                 <SelectItem value="EXPENSE">Despesa</SelectItem>
+                <SelectItem value="INCOME">Receita</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -104,21 +119,11 @@ export function QuickAddTransaction({
                 <SelectValue placeholder="Selecione a categoria" />
               </SelectTrigger>
               <SelectContent>
-                {isLoading ? (
-                  <SelectItem value="" disabled>
-                    Carregando categorias...
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
                   </SelectItem>
-                ) : categories.length === 0 ? (
-                  <SelectItem value="" disabled>
-                    Nenhuma categoria encontrada
-                  </SelectItem>
-                ) : (
-                  categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))
-                )}
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -132,7 +137,7 @@ export function QuickAddTransaction({
               required
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full">
             Adicionar
           </Button>
         </form>
