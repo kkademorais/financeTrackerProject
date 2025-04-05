@@ -3,17 +3,18 @@ const nextConfig = {
   // Habilita o uso de imagens de domínios externos
   images: {
     domains: ['avatars.githubusercontent.com', 'lh3.googleusercontent.com'],
-    unoptimized: true
   },
   // Otimizações para produção
   swcMinify: true,
-  reactStrictMode: false,
+  reactStrictMode: true,
   // Configuração para o Vercel
   typescript: {
-    ignoreBuildErrors: true
+    // Não ignorar erros de tipo em produção
+    ignoreBuildErrors: process.env.NODE_ENV === 'development'
   },
   eslint: {
-    ignoreDuringBuilds: true
+    // Não ignorar erros de lint em produção
+    ignoreDuringBuilds: process.env.NODE_ENV === 'development'
   },
   // Configuração de ambiente
   env: {
@@ -39,8 +40,8 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path*",
-        destination: "/api/:path*",
+        source: '/api/:path*',
+        destination: '/api/:path*',
       },
     ];
   },
@@ -52,10 +53,7 @@ const nextConfig = {
   trailingSlash: false,
   poweredByHeader: false,
   // Configuração de build
-  output: 'standalone',
-  experimental: {
-    serverActions: true,
-  },
+  // output: 'standalone',
 }
 
 module.exports = nextConfig 

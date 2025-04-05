@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -33,108 +33,70 @@ export default function LoginPage() {
     },
   });
 
-  async function onSubmit(data: z.infer<typeof formSchema>) {
-    try {
-      setIsLoading(true);
-      console.log("[Login] Attempting login for:", data.email);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
 
+    try {
+      console.log("[Login] Tentando login com email:", form.getValues("email"));
+      
       const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
+        email: form.getValues("email"),
+        password: form.getValues("password"),
         redirect: false,
+        callbackUrl: "/dashboard",
       });
 
-      console.log("[Login] SignIn result:", result);
+      console.log("[Login] Resultado do login:", result);
 
-      if (!result) {
-        console.error("[Login] No response from server");
+      if (result?.error) {
+        console.error("[Login] Erro no login:", result.error);
         toast({
           variant: "destructive",
           title: "Erro no Login",
-          description: "Não foi possível conectar ao servidor. Tente novamente.",
-          duration: 5000,
+          description: result.error,
         });
         return;
       }
 
-      if (result.error) {
-        console.error("[Login] Authentication error:", result.error);
+      if (result?.ok) {
+        console.log("[Login] Login bem-sucedido, redirecionando para /dashboard");
         toast({
-          variant: "destructive",
-          title: "Erro no Login",
-          description: result.error === "Invalid password" 
-            ? "Senha incorreta. Tente novamente."
-            : result.error === "No user found with this email"
-            ? "Email não encontrado. Verifique ou crie uma conta."
-            : "Ocorreu um erro durante o login. Tente novamente.",
-          duration: 5000,
+          title: "Login realizado com sucesso!",
+          description: "Redirecionando para o dashboard...",
         });
-        return;
+        
+        // Aguardar um momento para o toast ser exibido
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Forçar o redirecionamento
+        window.location.href = "/dashboard";
       }
-
-      if (result.ok) {
-        console.log("[Login] Login successful for:", data.email);
-        toast({
-          title: "Login realizado com sucesso! 🎉",
-          description: "Bem-vindo de volta! Você será redirecionado para a página inicial.",
-          duration: 5000,
-        });
-
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        router.push("/");
-        router.refresh();
-      } else {
-        console.error("[Login] Unexpected result:", result);
-        toast({
-          variant: "destructive",
-          title: "Erro no Login",
-          description: "Ocorreu um erro inesperado. Tente novamente.",
-          duration: 5000,
-        });
-      }
-
     } catch (error) {
-      console.error("[Login] Error during login:", error);
+      console.error("[Login] Error:", error);
       toast({
         variant: "destructive",
         title: "Erro no Login",
-        description: "Ocorreu um erro durante o login. Tente novamente.",
-        duration: 5000,
+        description: "Erro ao fazer login. Tente novamente.",
       });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
-  const handleOAuthSignIn = async (provider: string) => {
+  const handleOAuthSignIn = async (provider: "google" | "github") => {
     try {
-      setIsLoading(true);
-      console.log("[Login] Attempting OAuth login with:", provider);
-      
-      const result = await signIn(provider, { 
-        callbackUrl: "/",
-        redirect: false 
-      });
-
-      console.log("[Login] OAuth result:", result);
-
-      if (result?.error) {
-        console.error("[Login] OAuth error:", result.error);
-        toast({
-          variant: "destructive",
-          title: "Erro na Autenticação",
-          description: `Não foi possível fazer login com ${provider}. Tente novamente.`,
-        });
-      }
+      console.log(`[Login] Iniciando login com ${provider}`);
+      // Usar window.location.href para forçar o redirecionamento
+      const callbackUrl = encodeURIComponent("/dashboard");
+      window.location.href = `/api/auth/signin/${provider}?callbackUrl=${callbackUrl}`;
     } catch (error) {
-      console.error("[Login] OAuth error:", error);
+      console.error(`[Login] Error signing in with ${provider}:`, error);
       toast({
         variant: "destructive",
         title: "Erro na Autenticação",
-        description: `Não foi possível fazer login com ${provider}. Tente novamente.`,
+        description: `Erro ao fazer login com ${provider}. Tente novamente.`,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -166,7 +128,7 @@ export default function LoginPage() {
             </p>
           </div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"

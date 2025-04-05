@@ -5,15 +5,20 @@ declare global {
 }
 
 const prismaClientSingleton = () => {
+  // Determinar qual URL de banco de dados usar com base no ambiente
+  const databaseUrl = process.env.NODE_ENV === 'production' 
+    ? process.env.DATABASE_URL_PROD || process.env.DATABASE_URL
+    : process.env.DATABASE_URL;
+  
   console.log("[PRISMA] Initializing Prisma Client with URL:", 
-    process.env.DATABASE_URL?.replace(/\/\/.*@/, "//***@")
+    databaseUrl?.replace(/\/\/.*@/, "//***@")
   );
   
   return new PrismaClient({
-    log: ['error', 'warn'],
+    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     datasources: {
       db: {
-        url: process.env.DATABASE_URL
+        url: databaseUrl
       }
     }
   });

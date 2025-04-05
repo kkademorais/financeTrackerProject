@@ -6,6 +6,8 @@ import GoogleProvider from "next-auth/providers/google";
 import GithubProvider from "next-auth/providers/github";
 import { compare } from "bcryptjs";
 import { setupUserCategories } from "./categories";
+import NextAuth from "next-auth";
+import { authConfig } from "./auth-config";
 
 import { prisma } from "@/lib/prisma";
 
@@ -35,10 +37,11 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   pages: {
-    signIn: "/auth/signin",
+    signIn: "/login",
     error: "/login",
+    newUser: "/register",
   },
-  debug: process.env.NODE_ENV === "development",
+  debug: true, // Habilitar debug em produção temporariamente
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -93,18 +96,21 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, account }) {
+      console.log("[Auth] JWT Callback - Token:", token, "User:", user?.id);
       if (user) {
         token.sub = user.id;
       }
       return token;
     },
     async session({ session, token }) {
+      console.log("[Auth] Session Callback - Session:", session?.user?.email, "Token:", token.sub);
       if (session?.user) {
         session.user.id = token.sub!;
       }
       return session;
     },
-    async signIn({ user }) {
+    async signIn({ user, account, profile }) {
+      console.log("[Auth] SignIn Callback - User:", user.id, "Account:", account?.provider);
       if (user.id) {
         console.log("[AUTH] User signed in, setting up categories:", user.id);
         try {
@@ -115,25 +121,42 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
+    async redirect({ url, baseUrl }) {
+      console.log("[Auth] Redirect Callback - URL:", url, "BaseURL:", baseUrl);
+      
+      // Se a URL começar com a baseUrl, permita o redirecionamento
+      if (url.startsWith(baseUrl)) {
+        console.log("[Auth] URL começa com baseUrl, permitindo redirecionamento");
+        return url;
+      }
+      
+      // Se a URL for relativa, adicione a baseUrl
+      if (url.startsWith("/")) {
+        const redirectUrl = `${baseUrl}${url}`;
+        console.log("[Auth] URL relativa, redirecionando para:", redirectUrl);
+        return redirectUrl;
+      }
+      
+      // Se a URL for externa e começar com http, permita
+      if (url.startsWith("http")) {
+        console.log("[Auth] URL externa, permitindo redirecionamento");
+        return url;
+      }
+      
+      // Por padrão, redirecione para o dashboard
+      const defaultUrl = `${baseUrl}/dashboard`;
+      console.log("[Auth] Redirecionando para URL padrão:", defaultUrl);
+      return defaultUrl;
+    },
   },
   events: {
     async signIn({ user, account }) {
-      if (!process.env.NEXTAUTH_SECRET) {
-        console.error("[Auth] NEXTAUTH_SECRET não está definido!");
-      }
-      console.log("[Auth] SignIn Event - User:", user.id, "Account type:", account?.provider);
-      
-      if (user.id) {
-        try {
-          await setupUserCategories(user.id);
-          console.log("[Auth] Categorias configuradas com sucesso para o usuário:", user.id);
-        } catch (error) {
-          console.error("[Auth] Erro ao configurar categorias:", error);
-        }
-      }
+      console.log("[Auth] SignIn Event - User:", user.id, "Account:", account?.provider);
     },
     async signOut({ token }) {
-      console.log("[Auth] SignOut Event - Token:", token.id);
+      console.log("[Auth] SignOut Event - Token:", token.sub);
     },
   },
-}; 
+};
+
+export const { auth, signIn, signOut } = NextAuth(authConfig); 
